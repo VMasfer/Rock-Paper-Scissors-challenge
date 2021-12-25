@@ -21,17 +21,14 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   modifier checkGame(uint256 _gameId, uint256 _path) {
     Game memory gameM = games[_gameIdToIndex[_gameId]];
     require(_gameId < gamesCreated, 'Game does not exist');
-    require(gameM.id == _gameId, 'An unexpected error occurred');
+    require(gameM.id == _gameId, 'Game has already ended');
     if (_path == 0) {
       require(gameM.status == Status.CREATED, 'Game has already started');
     } else if (_path == 1) {
       require(gameM.player1 == msg.sender, 'Player 1 is not you');
       if (gameM.status != Status.STARTED) {
-        if (gameM.status == Status.CREATED) {
-          revert('Game has not started yet');
-        } else {
-          revert('Game cannot be ended by Player 1');
-        }
+        require(gameM.status != Status.CREATED, 'Game has not started yet');
+        revert('Game has already ended');
       }
     } else if (_path == 2) {
       require(gameM.player2 == msg.sender, 'Player 2 is not you');
