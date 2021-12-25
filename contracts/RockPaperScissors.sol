@@ -92,17 +92,17 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     Game memory gameM = games[_gameIdToIndex[_gameId]];
     if (gameM.decryptedMove == gameM.move) {
       game.status = Status.TIE;
+      emit GameEnded(msg.sender, game);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet}('');
       require(sent, 'Failed to send the bet back');
-      emit GameEnded(msg.sender, game);
     } else if ((uint8(gameM.decryptedMove) + 3 - uint8(gameM.move)) % 3 == 1) {
       game.status = Status.PLAYER1;
+      emit GameEnded(msg.sender, game);
+      _deleteGame(_gameId);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
       require(sent, 'Failed to send the reward');
-      emit GameEnded(msg.sender, game);
-      _deleteGame(_gameId);
     } else {
       game.status = Status.PLAYER2;
       emit GameEnded(msg.sender, game);
@@ -113,24 +113,24 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     Game storage game = games[_gameIdToIndex[_gameId]];
     Game memory gameM = games[_gameIdToIndex[_gameId]];
     if (gameM.status == Status.TIE) {
+      _deleteGame(_gameId);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet}('');
       require(sent, 'Failed to send the bet back');
-      _deleteGame(_gameId);
     } else if (gameM.status == Status.STARTED) {
       //solhint-disable-next-line
       require(block.timestamp >= gameM.timestamp + gameM.duration, 'Player 1 still has time to reveal his move');
       game.status = Status.PLAYER2;
-      //solhint-disable-next-line
-      (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
-      require(sent, 'Failed to send the reward');
       emit GameEnded(msg.sender, game);
       _deleteGame(_gameId);
-    } else {
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
       require(sent, 'Failed to send the reward');
+    } else {
       _deleteGame(_gameId);
+      //solhint-disable-next-line
+      (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
+      require(sent, 'Failed to send the reward');
     }
   }
 
