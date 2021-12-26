@@ -1,11 +1,9 @@
-import '@openzeppelin/contracts/access/Ownable.sol';
 import './IRockPaperScissors.sol';
-import './IRPS.sol';
 
 //SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.4 <0.9.0;
 
-contract RockPaperScissors is IRockPaperScissors, Ownable {
+contract RockPaperScissors is IRockPaperScissors {
   Game[] public games;
   mapping(address => uint256) public playerToId;
   mapping(uint256 => uint256) private _gameIdToIndex;
@@ -132,22 +130,6 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
       require(sent, 'Failed to send the reward');
       _deleteGame(_gameId);
     }
-  }
-
-  function transferERC20Token(address _tokenContractAddress, uint256 _amount) external onlyOwner {
-    IERC20 tokenContract = IERC20(_tokenContractAddress);
-    tokenContract.transfer(msg.sender, _amount);
-  }
-
-  function withdrawEtherBalance(uint256 _amount) external onlyOwner {
-    require(address(this).balance >= _amount, 'Insufficient ether in balance');
-    //solhint-disable-next-line
-    (bool sent, ) = msg.sender.call{value: _amount}('');
-    require(sent, 'Failed to send ether');
-  }
-
-  function getEtherBalance() external view returns (uint256) {
-    return address(this).balance;
   }
 
   function getGames() external view override returns (Game[] memory) {
