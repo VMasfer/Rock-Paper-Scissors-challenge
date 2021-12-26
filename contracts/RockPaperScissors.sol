@@ -1,9 +1,32 @@
-import './IRockPaperScissors.sol';
-
 //SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.4 <0.9.0;
 
-contract RockPaperScissors is IRockPaperScissors {
+contract RockPaperScissors {
+  enum Hand {
+    IDLE,
+    ROCK,
+    PAPER,
+    SCISSORS
+  }
+  enum Status {
+    CREATED,
+    STARTED,
+    PLAYER1,
+    PLAYER2,
+    TIE
+  }
+  struct Game {
+    uint256 id;
+    address player1;
+    address player2;
+    uint256 bet;
+    uint16 duration;
+    uint256 timestamp;
+    bytes32 encryptedMove;
+    Hand decryptedMove;
+    Hand move;
+    Status status;
+  }
   Game[] public games;
   mapping(address => uint256) public playerToId;
   mapping(uint256 => uint256) private _gameIdToIndex;
@@ -50,7 +73,7 @@ contract RockPaperScissors is IRockPaperScissors {
     revert('Wrong call to contract');
   }
 
-  function createGame(bytes32 _encryptedMove, uint16 _duration) external payable override {
+  function createGame(bytes32 _encryptedMove, uint16 _duration) external payable {
     require(msg.value <= (2**256 - 2) / 2, 'The bet is too big');
     Game memory newGame;
     newGame.id = gamesCreated++;
@@ -66,11 +89,11 @@ contract RockPaperScissors is IRockPaperScissors {
     }
   }
 
-  function quitGame(uint256 _gameId) external override checkGame(_gameId, 3) {
+  function quitGame(uint256 _gameId) external checkGame(_gameId, 3) {
     _deleteGame(_gameId);
   }
 
-  function playGame(uint256 _gameId, Hand _move) external payable override checkGame(_gameId, 0) {
+  function playGame(uint256 _gameId, Hand _move) external payable checkGame(_gameId, 0) {
     Game storage game = games[_gameIdToIndex[_gameId]];
     require(game.bet == msg.value, 'Wrong ether sent');
     require(_move != Hand.IDLE, 'Invalid move');
@@ -84,7 +107,7 @@ contract RockPaperScissors is IRockPaperScissors {
     }
   }
 
-  function endGameAsPlayer1(uint256 _gameId, bytes calldata _seed) external override checkGame(_gameId, 1) {
+  function endGameAsPlayer1(uint256 _gameId, bytes calldata _seed) external checkGame(_gameId, 1) {
     _decryptMove(_gameId, _seed);
     Game storage game = games[_gameIdToIndex[_gameId]];
     Game memory gameM = games[_gameIdToIndex[_gameId]];
@@ -107,7 +130,7 @@ contract RockPaperScissors is IRockPaperScissors {
     }
   }
 
-  function endGameAsPlayer2(uint256 _gameId) external override checkGame(_gameId, 2) {
+  function endGameAsPlayer2(uint256 _gameId) external checkGame(_gameId, 2) {
     Game storage game = games[_gameIdToIndex[_gameId]];
     Game memory gameM = games[_gameIdToIndex[_gameId]];
     if (gameM.status == Status.TIE) {
@@ -132,11 +155,11 @@ contract RockPaperScissors is IRockPaperScissors {
     }
   }
 
-  function getGames() external view override returns (Game[] memory) {
+  function getGames() external view returns (Game[] memory) {
     return games;
   }
 
-  function getAvailableGames() external view override returns (Game[] memory) {
+  function getAvailableGames() external view returns (Game[] memory) {
     uint256 availableGamesIndex;
     for (uint256 i; i < games.length; i++) {
       if (games[i].status == Status.CREATED) {
@@ -154,7 +177,7 @@ contract RockPaperScissors is IRockPaperScissors {
     return availableGames;
   }
 
-  function getAvailableGamesByPlayer(address _player) external view override returns (Game[] memory) {
+  function getAvailableGamesByPlayer(address _player) external view returns (Game[] memory) {
     uint256 availableGamesByPlayerIndex;
     for (uint256 i; i < games.length; i++) {
       if (games[i].status == Status.CREATED && games[i].player1 == _player) {
@@ -172,7 +195,7 @@ contract RockPaperScissors is IRockPaperScissors {
     return availableGamesByPlayer;
   }
 
-  function getAvailablePlayers() external view override returns (address[] memory) {
+  function getAvailablePlayers() external view returns (address[] memory) {
     uint256 preAvailablePlayersIndex;
     for (uint256 i; i < games.length; i++) {
       if (games[i].status == Status.CREATED) {
