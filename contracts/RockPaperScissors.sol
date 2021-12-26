@@ -131,6 +131,11 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     }
   }
 
+  function transferERC20Token(address _tokenContractAddress, uint256 _amount) external onlyOwner {
+    IERC20 tokenContract = IERC20(_tokenContractAddress);
+    tokenContract.transfer(msg.sender, _amount);
+  }
+
   function withdrawEtherBalance(uint256 _amount) external onlyOwner {
     require(address(this).balance >= _amount, 'Insufficient ether in balance');
     //solhint-disable-next-line
@@ -138,9 +143,8 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     require(sent, 'Failed to send ether');
   }
 
-  function withdrawERC20Token(address _tokenContractAddress, uint256 _amount) external onlyOwner {
-    IERC20 tokenContract = IERC20(_tokenContractAddress);
-    tokenContract.transfer(msg.sender, _amount);
+  function getEtherBalance() external view returns (uint256) {
+    return address(this).balance;
   }
 
   function getGames() external view override returns (Game[] memory) {
@@ -228,139 +232,6 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
       }
     }
     return availablePlayers;
-  }
-
-  function getActiveGames() external view override returns (Game[] memory) {
-    uint256 activeGamesIndex;
-    for (uint256 i; i < games.length; i++) {
-      if (games[i].status != Status.CREATED) {
-        activeGamesIndex++;
-      }
-    }
-    Game[] memory activeGames = new Game[](activeGamesIndex);
-    delete activeGamesIndex;
-    for (uint256 i; i < games.length; i++) {
-      if (games[i].status != Status.CREATED) {
-        activeGames[activeGamesIndex] = games[i];
-        activeGamesIndex++;
-      }
-    }
-    return activeGames;
-  }
-
-  function getActiveGamesByPlayer(address _player) external view override returns (Game[] memory) {
-    uint256 activeGamesByPlayerIndex;
-    for (uint256 i; i < games.length; i++) {
-      if (
-        (games[i].status == Status.STARTED && games[i].player1 == _player) || (games[i].status != Status.CREATED && games[i].player2 == _player)
-      ) {
-        activeGamesByPlayerIndex++;
-      }
-    }
-    Game[] memory activeGamesByPlayer = new Game[](activeGamesByPlayerIndex);
-    delete activeGamesByPlayerIndex;
-    for (uint256 i; i < games.length; i++) {
-      if (
-        (games[i].status == Status.STARTED && games[i].player1 == _player) || (games[i].status != Status.CREATED && games[i].player2 == _player)
-      ) {
-        activeGamesByPlayer[activeGamesByPlayerIndex] = games[i];
-        activeGamesByPlayerIndex++;
-      }
-    }
-    return activeGamesByPlayer;
-  }
-
-  function getActivePlayers() external view override returns (address[] memory) {
-    uint256 preActivePlayersIndex;
-    for (uint256 i; i < games.length; i++) {
-      if (games[i].status == Status.STARTED) {
-        preActivePlayersIndex += 2;
-      } else if (games[i].status != Status.CREATED) {
-        preActivePlayersIndex++;
-      }
-    }
-    address[] memory preActivePlayers = new address[](preActivePlayersIndex);
-    delete preActivePlayersIndex;
-    uint256 activePlayersIndex;
-    uint256 player1Count;
-    uint256 player2Count;
-    for (uint256 i; i < games.length; i++) {
-      if (games[i].status == Status.STARTED && games[i].player1 != games[i].player2) {
-        preActivePlayers[preActivePlayersIndex] = games[i].player1;
-        preActivePlayersIndex++;
-        preActivePlayers[preActivePlayersIndex] = games[i].player2;
-        preActivePlayersIndex++;
-        for (uint256 j; j < preActivePlayersIndex; j++) {
-          if (preActivePlayers[j] == games[i].player1) {
-            player1Count++;
-          } else if (preActivePlayers[j] == games[i].player2) {
-            player2Count++;
-          }
-        }
-        if (player1Count == 1) {
-          activePlayersIndex++;
-        }
-        if (player2Count == 1) {
-          activePlayersIndex++;
-        }
-        delete player1Count;
-        delete player2Count;
-      } else if (games[i].status != Status.CREATED) {
-        preActivePlayers[preActivePlayersIndex] = games[i].player2;
-        preActivePlayersIndex++;
-        for (uint256 j; j < preActivePlayersIndex; j++) {
-          if (preActivePlayers[j] == games[i].player2) {
-            player2Count++;
-          }
-        }
-        if (player2Count == 1) {
-          activePlayersIndex++;
-        }
-        delete player2Count;
-      }
-    }
-    address[] memory activePlayers = new address[](activePlayersIndex);
-    delete preActivePlayersIndex;
-    delete activePlayersIndex;
-    for (uint256 i; i < games.length; i++) {
-      if (games[i].status == Status.STARTED && games[i].player1 != games[i].player2) {
-        preActivePlayersIndex += 2;
-        for (uint256 j; j < preActivePlayersIndex; j++) {
-          if (preActivePlayers[j] == games[i].player1) {
-            player1Count++;
-          } else if (preActivePlayers[j] == games[i].player2) {
-            player2Count++;
-          }
-        }
-        if (player1Count == 1) {
-          activePlayers[activePlayersIndex] = games[i].player1;
-          activePlayersIndex++;
-        }
-        if (player2Count == 1) {
-          activePlayers[activePlayersIndex] = games[i].player2;
-          activePlayersIndex++;
-        }
-        delete player1Count;
-        delete player2Count;
-      } else if (games[i].status != Status.CREATED) {
-        preActivePlayersIndex++;
-        for (uint256 j; j < preActivePlayersIndex; j++) {
-          if (preActivePlayers[j] == games[i].player2) {
-            player2Count++;
-          }
-        }
-        if (player2Count == 1) {
-          activePlayers[activePlayersIndex] = games[i].player2;
-          activePlayersIndex++;
-        }
-        delete player2Count;
-      }
-    }
-    return activePlayers;
-  }
-
-  function getEtherBalance() external view returns (uint256) {
-    return address(this).balance;
   }
 
   function _decryptMove(uint256 _gameId, bytes calldata _seed) private {

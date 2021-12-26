@@ -45,10 +45,4 @@ interface IRockPaperScissors {
   function getAvailableGamesByPlayer(address _player) external view returns (Game[] memory);
 
   function getAvailablePlayers() external view returns (address[] memory);
-
-  function getActiveGames() external view returns (Game[] memory);
-
-  function getActiveGamesByPlayer(address _player) external view returns (Game[] memory);
-
-  function getActivePlayers() external view returns (address[] memory);
 }
