@@ -74,39 +74,41 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   }
 
   function playGame(uint256 _gameId, Hand _move) external payable override checkGame(_gameId, 0) {
-    Game storage game = games[_gameIdToIndex[_gameId]];
-    require(game.bet == msg.value, 'Wrong ether sent');
+    Game memory gameM = games[_gameIdToIndex[_gameId]];
+    require(gameM.bet == msg.value, 'Wrong ether sent');
     require(_move != Hand.IDLE, 'Invalid move');
-    game.player2 = msg.sender;
-    game.timestamp = block.timestamp;
-    game.move = _move;
-    game.status = Status.STARTED;
-    emit GameStarted(msg.sender, game);
+    gameM.player2 = msg.sender;
+    gameM.timestamp = block.timestamp;
+    gameM.move = _move;
+    gameM.status = Status.STARTED;
+    games[_gameIdToIndex[_gameId]] = gameM;
+    emit GameStarted(msg.sender, gameM);
     if (playerToId[msg.sender] == 0) {
       playerToId[msg.sender] = ++totalPlayerIds;
     }
   }
 
   function endGameAsPlayer1(uint256 _gameId, bytes calldata _seed) external override checkGame(_gameId, 1) {
-    _decryptMove(_gameId, _seed);
-    Game storage game = games[_gameIdToIndex[_gameId]];
-    Game memory gameM = games[_gameIdToIndex[_gameId]];
+    Game memory gameM = _decryptMove(_gameId, _seed);
     if (gameM.decryptedMove == gameM.move) {
-      game.status = Status.TIE;
-      emit GameEnded(msg.sender, game);
+      gameM.status = Status.TIE;
+      games[_gameIdToIndex[_gameId]] = gameM;
+      emit GameEnded(msg.sender, gameM);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet}('');
       require(sent, 'Failed to send the bet back');
     } else if ((uint8(gameM.decryptedMove) + 3 - uint8(gameM.move)) % 3 == 1) {
-      game.status = Status.PLAYER1;
-      emit GameEnded(msg.sender, game);
+      gameM.status = Status.PLAYER1;
+      games[_gameIdToIndex[_gameId]] = gameM;
+      emit GameEnded(msg.sender, gameM);
       _deleteGame(_gameId);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
       require(sent, 'Failed to send the reward');
     } else {
-      game.status = Status.PLAYER2;
-      emit GameEnded(msg.sender, game);
+      gameM.status = Status.PLAYER2;
+      games[_gameIdToIndex[_gameId]] = gameM;
+      emit GameEnded(msg.sender, gameM);
     }
   }
 
@@ -367,29 +369,6 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     return address(this).balance;
   }
 
-  function _decryptMove(uint256 _gameId, bytes calldata _seed) private {
-    Game storage game = games[_gameIdToIndex[_gameId]];
-    Game memory gameM = games[_gameIdToIndex[_gameId]];
-    if (
-      keccak256(abi.encodePacked(Hand.ROCK, _seed)) == gameM.encryptedMove ||
-      keccak256(abi.encodePacked(_seed, Hand.ROCK)) == gameM.encryptedMove
-    ) {
-      game.decryptedMove = Hand.ROCK;
-    } else if (
-      keccak256(abi.encodePacked(Hand.PAPER, _seed)) == gameM.encryptedMove ||
-      keccak256(abi.encodePacked(_seed, Hand.PAPER)) == gameM.encryptedMove
-    ) {
-      game.decryptedMove = Hand.PAPER;
-    } else if (
-      keccak256(abi.encodePacked(Hand.SCISSORS, _seed)) == gameM.encryptedMove ||
-      keccak256(abi.encodePacked(_seed, Hand.SCISSORS)) == gameM.encryptedMove
-    ) {
-      game.decryptedMove = Hand.SCISSORS;
-    } else {
-      revert('Decryption failed');
-    }
-  }
-
   function _deleteGame(uint256 _gameId) private {
     Game storage game = games[_gameIdToIndex[_gameId]];
     emit GameDeleted(msg.sender, game);
@@ -397,5 +376,28 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     _gameIdToIndex[games[games.length - 1].id] = _gameIdToIndex[_gameId];
     delete _gameIdToIndex[_gameId];
     games.pop();
+  }
+
+  function _decryptMove(uint256 _gameId, bytes calldata _seed) private view returns (Game memory) {
+    Game memory gameM = games[_gameIdToIndex[_gameId]];
+    if (
+      keccak256(abi.encodePacked(Hand.ROCK, _seed)) == gameM.encryptedMove ||
+      keccak256(abi.encodePacked(_seed, Hand.ROCK)) == gameM.encryptedMove
+    ) {
+      gameM.decryptedMove = Hand.ROCK;
+    } else if (
+      keccak256(abi.encodePacked(Hand.PAPER, _seed)) == gameM.encryptedMove ||
+      keccak256(abi.encodePacked(_seed, Hand.PAPER)) == gameM.encryptedMove
+    ) {
+      gameM.decryptedMove = Hand.PAPER;
+    } else if (
+      keccak256(abi.encodePacked(Hand.SCISSORS, _seed)) == gameM.encryptedMove ||
+      keccak256(abi.encodePacked(_seed, Hand.SCISSORS)) == gameM.encryptedMove
+    ) {
+      gameM.decryptedMove = Hand.SCISSORS;
+    } else {
+      revert('Decryption failed');
+    }
+    return gameM;
   }
 }
