@@ -1,6 +1,6 @@
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './IRockPaperScissors.sol';
-import './IRPS.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 //SPDX-License-Identifier: Unlicense
 pragma solidity >=0.8.4 <0.9.0;
