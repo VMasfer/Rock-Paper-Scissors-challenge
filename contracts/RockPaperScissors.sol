@@ -66,7 +66,11 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   }
 
   function quitGame(uint256 _gameId) external override checkGame(_gameId, 3) {
+    uint256 bet = games[_gameIdToIndex[_gameId]].bet;
     _deleteGame(_gameId);
+    //solhint-disable-next-line
+    (bool sent, ) = msg.sender.call{value: bet}('');
+    require(sent, 'Failed to send the bet back');
   }
 
   function playGame(uint256 _gameId, Hand _move) external payable override checkGame(_gameId, 0) {
