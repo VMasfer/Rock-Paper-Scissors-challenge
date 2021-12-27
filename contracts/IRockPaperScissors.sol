@@ -28,11 +28,19 @@ interface IRockPaperScissors {
     Status status;
   }
 
-  function createGame(bytes32 _encryptedMove, uint16 _duration) external payable;
+  function buyRPS() external payable;
+
+  function sellRPS(uint256 _amount) external;
+
+  function createGame(
+    bytes32 _encryptedMove,
+    uint256 _bet,
+    uint16 _duration
+  ) external;
 
   function quitGame(uint256 _gameId) external;
 
-  function playGame(uint256 _gameId, Hand _move) external payable;
+  function playGame(uint256 _gameId, Hand _move) external;
 
   function endGameAsPlayer1(uint256 _gameId, bytes calldata _seed) external;
 

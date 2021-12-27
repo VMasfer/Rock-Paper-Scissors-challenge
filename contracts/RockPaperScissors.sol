@@ -6,16 +6,21 @@ import './IRPS.sol';
 pragma solidity >=0.8.4 <0.9.0;
 
 contract RockPaperScissors is IRockPaperScissors, Ownable {
+  IRPS public immutable rps;
   Game[] public games;
   mapping(address => uint256) public playerToId;
   mapping(uint256 => uint256) private _gameIdToIndex;
   uint256 public gamesCreated;
   uint256 public totalPlayerIds;
+  uint256 public rpsPrice = 0.01 ether;
+  uint8 public rpsFee = 10;
 
   event GameCreated(address indexed _creator, Game indexed _game);
   event GameStarted(address indexed _starter, Game indexed _game);
   event GameEnded(address indexed _ender, Game indexed _game);
   event GameDeleted(address indexed _deleter, Game indexed _game);
+  event RPSBought(address indexed _minter, uint256 _amount);
+  event RPSSold(address indexed _burner, uint256 _amount);
   event Received(address indexed _from, uint256 _value);
 
   modifier checkGame(uint256 _gameId, uint256 _path) {
@@ -39,6 +44,10 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     _;
   }
 
+  constructor(address _rpsContractAddress) {
+    rps = IRPS(_rpsContractAddress);
+  }
+
   receive() external payable {
     if (msg.value > 0) {
       emit Received(msg.sender, msg.value);
@@ -49,12 +58,33 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     revert('Wrong call to contract');
   }
 
-  function createGame(bytes32 _encryptedMove, uint16 _duration) external payable override {
-    require(msg.value <= (2**256 - 2) / 2, 'The bet is too big');
+  function buyRPS() external payable override {
+    require(msg.value % rpsPrice == 0 && msg.value != 0, 'Wrong ether sent');
+    uint256 amount = msg.value / rpsPrice;
+    rps.mint(msg.sender, amount);
+    emit RPSBought(msg.sender, amount);
+  }
+
+  function sellRPS(uint256 _amount) external override {
+    require(_amount != 0, 'Token amount cannot be zero');
+    rps.burn(msg.sender, _amount);
+    emit RPSSold(msg.sender, _amount);
+    //solhint-disable-next-line
+    (bool sent, ) = msg.sender.call{value: rpsPrice * _amount - (rpsPrice * _amount * rpsFee) / 100}('');
+    require(sent, 'Failed to send ether');
+  }
+
+  function createGame(
+    bytes32 _encryptedMove,
+    uint256 _bet,
+    uint16 _duration
+  ) external override {
+    require(_bet <= (2**256 - 2) / 2, 'The bet is too big');
+    rps.burn(msg.sender, _bet);
     Game memory newGame;
     newGame.id = gamesCreated++;
     newGame.player1 = msg.sender;
-    newGame.bet = msg.value;
+    newGame.bet = _bet;
     newGame.duration = _duration;
     newGame.encryptedMove = _encryptedMove;
     _gameIdToIndex[newGame.id] = games.length;
@@ -66,17 +96,15 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   }
 
   function quitGame(uint256 _gameId) external override checkGame(_gameId, 3) {
-    uint256 bet = games[_gameIdToIndex[_gameId]].bet;
+    Game storage game = games[_gameIdToIndex[_gameId]];
+    rps.mint(msg.sender, game.bet);
     _deleteGame(_gameId);
-    //solhint-disable-next-line
-    (bool sent, ) = msg.sender.call{value: bet}('');
-    require(sent, 'Failed to send the bet back');
   }
 
-  function playGame(uint256 _gameId, Hand _move) external payable override checkGame(_gameId, 0) {
-    Game memory gameM = games[_gameIdToIndex[_gameId]];
-    require(gameM.bet == msg.value, 'Wrong ether sent');
+  function playGame(uint256 _gameId, Hand _move) external override checkGame(_gameId, 0) {
     require(_move != Hand.IDLE, 'Invalid move');
+    Game memory gameM = games[_gameIdToIndex[_gameId]];
+    rps.burn(msg.sender, gameM.bet);
     gameM.player2 = msg.sender;
     gameM.timestamp = block.timestamp;
     gameM.move = _move;
@@ -94,17 +122,13 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
       gameM.status = Status.TIE;
       games[_gameIdToIndex[_gameId]] = gameM;
       emit GameEnded(msg.sender, gameM);
-      //solhint-disable-next-line
-      (bool sent, ) = msg.sender.call{value: gameM.bet}('');
-      require(sent, 'Failed to send the bet back');
+      rps.mint(msg.sender, gameM.bet);
     } else if ((uint8(gameM.decryptedMove) + 3 - uint8(gameM.move)) % 3 == 1) {
       gameM.status = Status.PLAYER1;
       games[_gameIdToIndex[_gameId]] = gameM;
       emit GameEnded(msg.sender, gameM);
+      rps.mint(msg.sender, gameM.bet * 2);
       _deleteGame(_gameId);
-      //solhint-disable-next-line
-      (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
-      require(sent, 'Failed to send the reward');
     } else {
       gameM.status = Status.PLAYER2;
       games[_gameIdToIndex[_gameId]] = gameM;
@@ -116,24 +140,18 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     Game storage game = games[_gameIdToIndex[_gameId]];
     Game memory gameM = games[_gameIdToIndex[_gameId]];
     if (gameM.status == Status.TIE) {
+      rps.mint(msg.sender, gameM.bet);
       _deleteGame(_gameId);
-      //solhint-disable-next-line
-      (bool sent, ) = msg.sender.call{value: gameM.bet}('');
-      require(sent, 'Failed to send the bet back');
     } else if (gameM.status == Status.STARTED) {
       //solhint-disable-next-line
       require(block.timestamp >= gameM.timestamp + gameM.duration, 'Player 1 still has time to reveal his move');
       game.status = Status.PLAYER2;
       emit GameEnded(msg.sender, game);
+      rps.mint(msg.sender, gameM.bet * 2);
       _deleteGame(_gameId);
-      //solhint-disable-next-line
-      (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
-      require(sent, 'Failed to send the reward');
     } else {
+      rps.mint(msg.sender, gameM.bet * 2);
       _deleteGame(_gameId);
-      //solhint-disable-next-line
-      (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
-      require(sent, 'Failed to send the reward');
     }
   }
 
@@ -147,6 +165,16 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   function withdrawERC20Token(address _tokenContractAddress, uint256 _amount) external onlyOwner {
     IERC20 tokenContract = IERC20(_tokenContractAddress);
     tokenContract.transfer(msg.sender, _amount);
+  }
+
+  function setRPSPrice(uint256 _rpsPrice) external onlyOwner {
+    require(_rpsPrice != 0, 'Token price cannot be zero');
+    rpsPrice = _rpsPrice;
+  }
+
+  function setRPSFee(uint8 _rpsFee) external onlyOwner {
+    require(_rpsFee <= 100, 'Invalid fee percentage');
+    rpsFee = _rpsFee;
   }
 
   function getGames() external view override returns (Game[] memory) {
