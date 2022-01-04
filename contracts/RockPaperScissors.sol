@@ -12,10 +12,10 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   uint256 public gamesCreated;
   uint256 public totalPlayerIds;
 
-  event GameCreated(address indexed _creator, Game indexed _game);
-  event GameStarted(address indexed _starter, Game indexed _game);
-  event GameEnded(address indexed _ender, Game indexed _game);
-  event GameDeleted(address indexed _deleter, Game indexed _game);
+  event GameCreated(address indexed _creator, uint256 indexed _gameId, Game _game);
+  event GameStarted(address indexed _starter, uint256 indexed _gameId, Game _game);
+  event GameEnded(address indexed _ender, uint256 indexed _gameId, Game _game);
+  event GameDeleted(address indexed _deleter, uint256 indexed _gameId, Game _game);
   event Received(address indexed _from, uint256 _value);
 
   modifier checkGame(uint256 _gameId, uint256 _path) {
@@ -60,7 +60,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     newGame.encryptedMove = _encryptedMove;
     _gameIdToIndex[newGame.id] = games.length;
     games.push(newGame);
-    emit GameCreated(msg.sender, newGame);
+    emit GameCreated(msg.sender, newGame.id, newGame);
     if (playerToId[msg.sender] == 0) {
       playerToId[msg.sender] = ++totalPlayerIds;
     }
@@ -83,7 +83,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     gameM.move = _move;
     gameM.status = Status.STARTED;
     games[_gameIdToIndex[_gameId]] = gameM;
-    emit GameStarted(msg.sender, gameM);
+    emit GameStarted(msg.sender, _gameId, gameM);
     if (playerToId[msg.sender] == 0) {
       playerToId[msg.sender] = ++totalPlayerIds;
     }
@@ -94,14 +94,14 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     if (gameM.decryptedMove == gameM.move) {
       gameM.status = Status.TIE;
       games[_gameIdToIndex[_gameId]] = gameM;
-      emit GameEnded(msg.sender, gameM);
+      emit GameEnded(msg.sender, _gameId, gameM);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet}('');
       require(sent, 'Failed to send the bet back');
     } else if ((uint8(gameM.decryptedMove) + 3 - uint8(gameM.move)) % 3 == 1) {
       gameM.status = Status.PLAYER1;
       games[_gameIdToIndex[_gameId]] = gameM;
-      emit GameEnded(msg.sender, gameM);
+      emit GameEnded(msg.sender, _gameId, gameM);
       _deleteGame(_gameId);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
@@ -109,7 +109,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     } else {
       gameM.status = Status.PLAYER2;
       games[_gameIdToIndex[_gameId]] = gameM;
-      emit GameEnded(msg.sender, gameM);
+      emit GameEnded(msg.sender, _gameId, gameM);
     }
   }
 
@@ -125,7 +125,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
       //solhint-disable-next-line
       require(block.timestamp >= gameM.timestamp + gameM.duration, 'Player 1 still has time to reveal his move');
       game.status = Status.PLAYER2;
-      emit GameEnded(msg.sender, game);
+      emit GameEnded(msg.sender, _gameId, game);
       _deleteGame(_gameId);
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet * 2}('');
@@ -372,7 +372,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
 
   function _deleteGame(uint256 _gameId) private {
     Game storage game = games[_gameIdToIndex[_gameId]];
-    emit GameDeleted(msg.sender, game);
+    emit GameDeleted(msg.sender, _gameId, game);
     games[_gameIdToIndex[_gameId]] = games[games.length - 1];
     _gameIdToIndex[games[games.length - 1].id] = _gameIdToIndex[_gameId];
     delete _gameIdToIndex[_gameId];
