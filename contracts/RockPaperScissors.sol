@@ -401,7 +401,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   function _deleteGame(uint256 _gameId) private {
     Game storage game = games[_gameIdToIndex[_gameId]];
     emit GameDeleted(msg.sender, game);
-    game = games[games.length - 1];
+    games[_gameIdToIndex[_gameId]] = games[games.length - 1];
     _gameIdToIndex[games[games.length - 1].id] = _gameIdToIndex[_gameId];
     delete _gameIdToIndex[_gameId];
     games.pop();
