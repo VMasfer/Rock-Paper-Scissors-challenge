@@ -24,22 +24,23 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   event Received(address indexed _from, uint256 _value);
 
   modifier checkGame(uint256 _gameId, uint256 _path) {
+    require(games.length != 0, 'The games list is empty');
     Game memory gameM = games[_gameIdToIndex[_gameId]];
     require(_gameId < gamesCreated, 'Game does not exist');
-    require(gameM.id == _gameId, 'Game has already ended');
+    require(gameM.id == _gameId, 'Game has been deleted');
     if (_path == 0) {
       require(gameM.status == Status.CREATED, 'Game has already started');
     } else if (_path == 1) {
-      require(gameM.player1 == msg.sender, 'Player 1 is not you');
       if (gameM.status != Status.STARTED) {
         require(gameM.status != Status.CREATED, 'Game has not started yet');
         revert('Game has already ended');
       }
+      require(gameM.player1 == msg.sender, 'Player 1 is not you');
     } else if (_path == 2) {
       require(gameM.player2 == msg.sender, 'Player 2 is not you');
     } else {
-      require(gameM.player1 == msg.sender, 'Player 1 is not you');
       require(gameM.status == Status.CREATED, 'Game has already started');
+      require(gameM.player1 == msg.sender, 'Player 1 is not you');
     }
     _;
   }
