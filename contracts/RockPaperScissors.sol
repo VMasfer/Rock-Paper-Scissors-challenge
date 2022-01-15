@@ -13,7 +13,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   uint256 public gamesCreated;
   uint256 public totalPlayerIds;
   uint256 public rpsPrice = 0.01 ether;
-  uint8 public rpsFee = 10;
+  uint256 public rpsFee = 10;
 
   event GameCreated(address indexed _creator, uint256 indexed _gameId, Game _game);
   event GameStarted(address indexed _starter, uint256 indexed _gameId, Game _game);
@@ -128,7 +128,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
       games[_gameIdToIndex[_gameId]] = gameM;
       emit GameEnded(msg.sender, _gameId, gameM);
       rps.mint(msg.sender, gameM.bet);
-    } else if ((uint8(gameM.decryptedMove) + 3 - uint8(gameM.move)) % 3 == 1) {
+    } else if ((uint256(gameM.decryptedMove) + 3 - uint256(gameM.move)) % 3 == 1) {
       gameM.status = Status.PLAYER1;
       games[_gameIdToIndex[_gameId]] = gameM;
       emit GameEnded(msg.sender, _gameId, gameM);
@@ -174,7 +174,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     rpsPrice = _rpsPrice;
   }
 
-  function setRPSFee(uint8 _rpsFee) external onlyOwner {
+  function setRPSFee(uint256 _rpsFee) external onlyOwner {
     require(_rpsFee <= 100, 'Invalid fee percentage');
     emit RPSFeeChanged(rpsFee, _rpsFee);
     rpsFee = _rpsFee;
