@@ -396,7 +396,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     return activePlayers;
   }
 
-  function getEtherBalance() external view returns (uint256) {
+  function getEtherBalance() external view override returns (uint256) {
     return address(this).balance;
   }
 
