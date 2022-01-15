@@ -15,13 +15,16 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
   uint256 public rpsPrice = 0.01 ether;
   uint8 public rpsFee = 10;
 
-  event GameCreated(address indexed _creator, Game indexed _game);
-  event GameStarted(address indexed _starter, Game indexed _game);
-  event GameEnded(address indexed _ender, Game indexed _game);
-  event GameDeleted(address indexed _deleter, Game indexed _game);
+  event GameCreated(address indexed _creator, uint256 indexed _gameId, Game _game);
+  event GameStarted(address indexed _starter, uint256 indexed _gameId, Game _game);
+  event GameEnded(address indexed _ender, uint256 indexed _gameId, Game _game);
+  event GameDeleted(address indexed _deleter, uint256 indexed _gameId, Game _game);
   event RPSBought(address indexed _minter, uint256 _amount);
   event RPSSold(address indexed _burner, uint256 _amount);
-  event Received(address indexed _from, uint256 _value);
+  event RPSPriceChanged(uint256 _oldRPSPrice, uint256 _newRPSPrice);
+  event RPSFeeChanged(uint256 _oldRPSFee, uint256 _newRPSFee);
+  event EtherReceived(address indexed _sender, uint256 _value);
+  event EtherWithdrawn(address indexed _withdrawer, uint256 _value);
 
   modifier checkGame(uint256 _gameId, uint256 _path) {
     require(games.length != 0, 'The games list is empty');
@@ -51,7 +54,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
 
   receive() external payable {
     if (msg.value > 0) {
-      emit Received(msg.sender, msg.value);
+      emit EtherReceived(msg.sender, msg.value);
     }
   }
 
@@ -70,8 +73,9 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     require(_amount != 0, 'Token amount cannot be zero');
     rps.burn(msg.sender, _amount);
     emit RPSSold(msg.sender, _amount);
+    uint256 rpsBidPrice = rpsPrice - (rpsPrice * rpsFee) / 100;
     //solhint-disable-next-line
-    (bool sent, ) = msg.sender.call{value: rpsPrice * _amount - (rpsPrice * _amount * rpsFee) / 100}('');
+    (bool sent, ) = msg.sender.call{value: rpsBidPrice * _amount}('');
     require(sent, 'Failed to send ether');
   }
 
@@ -90,7 +94,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     newGame.encryptedMove = _encryptedMove;
     _gameIdToIndex[newGame.id] = games.length;
     games.push(newGame);
-    emit GameCreated(msg.sender, newGame);
+    emit GameCreated(msg.sender, newGame.id, newGame);
     if (playerToId[msg.sender] == 0) {
       playerToId[msg.sender] = ++totalPlayerIds;
     }
@@ -111,7 +115,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     gameM.move = _move;
     gameM.status = Status.STARTED;
     games[_gameIdToIndex[_gameId]] = gameM;
-    emit GameStarted(msg.sender, gameM);
+    emit GameStarted(msg.sender, _gameId, gameM);
     if (playerToId[msg.sender] == 0) {
       playerToId[msg.sender] = ++totalPlayerIds;
     }
@@ -122,18 +126,18 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     if (gameM.decryptedMove == gameM.move) {
       gameM.status = Status.TIE;
       games[_gameIdToIndex[_gameId]] = gameM;
-      emit GameEnded(msg.sender, gameM);
+      emit GameEnded(msg.sender, _gameId, gameM);
       rps.mint(msg.sender, gameM.bet);
     } else if ((uint8(gameM.decryptedMove) + 3 - uint8(gameM.move)) % 3 == 1) {
       gameM.status = Status.PLAYER1;
       games[_gameIdToIndex[_gameId]] = gameM;
-      emit GameEnded(msg.sender, gameM);
+      emit GameEnded(msg.sender, _gameId, gameM);
       rps.mint(msg.sender, gameM.bet * 2);
       _deleteGame(_gameId);
     } else {
       gameM.status = Status.PLAYER2;
       games[_gameIdToIndex[_gameId]] = gameM;
-      emit GameEnded(msg.sender, gameM);
+      emit GameEnded(msg.sender, _gameId, gameM);
     }
   }
 
@@ -147,7 +151,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
       //solhint-disable-next-line
       require(block.timestamp >= gameM.timestamp + gameM.duration, 'Player 1 still has time to reveal his move');
       game.status = Status.PLAYER2;
-      emit GameEnded(msg.sender, game);
+      emit GameEnded(msg.sender, _gameId, game);
       rps.mint(msg.sender, gameM.bet * 2);
       _deleteGame(_gameId);
     } else {
@@ -156,25 +160,23 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
     }
   }
 
-  function withdrawEtherBalance(uint256 _amount) external onlyOwner {
-    require(address(this).balance >= _amount, 'Insufficient ether in balance');
+  function withdrawEtherBalance(uint256 _value) external onlyOwner {
+    require(address(this).balance >= _value, 'Insufficient ether in balance');
     //solhint-disable-next-line
-    (bool sent, ) = msg.sender.call{value: _amount}('');
+    (bool sent, ) = msg.sender.call{value: _value}('');
     require(sent, 'Failed to send ether');
-  }
-
-  function withdrawERC20Token(address _tokenContractAddress, uint256 _amount) external onlyOwner {
-    IERC20 tokenContract = IERC20(_tokenContractAddress);
-    tokenContract.transfer(msg.sender, _amount);
+    emit EtherWithdrawn(msg.sender, _value);
   }
 
   function setRPSPrice(uint256 _rpsPrice) external onlyOwner {
     require(_rpsPrice != 0, 'Token price cannot be zero');
+    emit RPSPriceChanged(rpsPrice, _rpsPrice);
     rpsPrice = _rpsPrice;
   }
 
   function setRPSFee(uint8 _rpsFee) external onlyOwner {
     require(_rpsFee <= 100, 'Invalid fee percentage');
+    emit RPSFeeChanged(rpsFee, _rpsFee);
     rpsFee = _rpsFee;
   }
 
@@ -400,7 +402,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
 
   function _deleteGame(uint256 _gameId) private {
     Game storage game = games[_gameIdToIndex[_gameId]];
-    emit GameDeleted(msg.sender, game);
+    emit GameDeleted(msg.sender, _gameId, game);
     games[_gameIdToIndex[_gameId]] = games[games.length - 1];
     _gameIdToIndex[games[games.length - 1].id] = _gameIdToIndex[_gameId];
     delete _gameIdToIndex[_gameId];
