@@ -51,4 +51,6 @@ interface IRockPaperScissors {
   function getActiveGamesByPlayer(address _player) external view returns (Game[] memory);
 
   function getActivePlayers() external view returns (address[] memory);
+
+  function getEtherBalance() external view returns (uint256);
 }
