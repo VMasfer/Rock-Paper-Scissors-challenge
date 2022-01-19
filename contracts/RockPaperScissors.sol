@@ -99,7 +99,7 @@ contract RockPaperScissors is IRockPaperScissors, Ownable {
       //solhint-disable-next-line
       (bool sent, ) = msg.sender.call{value: gameM.bet}('');
       require(sent, 'Failed to send the bet back');
-    } else if ((uint8(gameM.decryptedMove) + 3 - uint8(gameM.move)) % 3 == 1) {
+    } else if ((uint256(gameM.decryptedMove) + 3 - uint256(gameM.move)) % 3 == 1) {
       gameM.status = Status.PLAYER1;
       games[_gameIdToIndex[_gameId]] = gameM;
       emit GameEnded(msg.sender, _gameId, gameM);
