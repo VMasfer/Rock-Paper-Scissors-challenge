@@ -12,6 +12,7 @@ artifacts
 typechained
 deployments/hardhat
 deployments/localhost
+deployments/ropsten/solcInputs
 
 # Config files
 .env
