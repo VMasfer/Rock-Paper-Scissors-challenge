@@ -29,7 +29,7 @@
     "postinstall": "husky install && yarn compile:test",
     "lint:check": "cross-env solhint 'contracts/**/*.sol' 'interfaces/**/*.sol' && cross-env prettier --check './**'",
     "lint:fix": "sort-package-json && cross-env prettier --write './**' && cross-env solhint --fix 'contracts/**/*.sol' 'interfaces/**/*.sol'",
-    "test": "yarn compile:test && cross-env TEST=true mocha './test/e2e/**/*.spec.ts'"
+    "test": "yarn compile:test && cross-env TEST=true mocha './test/**/*.spec.ts'"
   },
   "dependencies": {
     "@defi-wonderland/smock": "^2.0.7",
