@@ -1,0 +1,21 @@
+# General
+node_modules
+.DS_STORE
+
+# Coverage
+coverage.json
+coverage
+
+# Hardhat files
+cache
+artifacts
+typechained
+deployments/hardhat
+deployments/localhost
+deployments/ropsten/solcInputs
+
+# Config files
+.env
+
+# Not ignore gitkeep
+!/**/.gitkeep
